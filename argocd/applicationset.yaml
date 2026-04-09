@@ -1,0 +1,45 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: guestbook
+  namespace: argocd
+spec:
+  generators:
+  - list:
+      elements:
+      - stage: dev
+        namespace: guestbook-dev
+      - stage: staging
+        namespace: guestbook-staging
+      - stage: prod-us-east
+        namespace: guestbook-prod-us-east
+      - stage: prod-us-west
+        namespace: guestbook-prod-us-west
+      - stage: prod-eu
+        namespace: guestbook-prod-eu
+  template:
+    metadata:
+      name: guestbook-{{stage}}
+      annotations:
+        kargo.akuity.io/authorized-stage: guestbook:{{stage}}
+      labels:
+        app.kubernetes.io/name: guestbook
+        app.kubernetes.io/part-of: guestbook
+        app.kubernetes.io/managed-by: applicationset
+        stage: '{{stage}}'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/nitin4613/se-demo-akuity.git
+        targetRevision: HEAD
+        path: apps/guestbook/envs/{{stage}}
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{namespace}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true

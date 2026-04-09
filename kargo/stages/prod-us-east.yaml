@@ -1,0 +1,49 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: prod-us-east
+  namespace: guestbook
+spec:
+  requestedFreight:
+  - origin:
+      kind: Warehouse
+      name: guestbook
+    sources:
+      stages:
+      - staging
+  promotionTemplate:
+    spec:
+      vars:
+      - name: repoURL
+        value: https://github.com/nitin4613/se-demo-akuity.git
+      - name: imageRepo
+        value: ghcr.io/nitin4613/guestbook
+      steps:
+      - uses: git-clone
+        config:
+          repoURL: ${{ vars.repoURL }}
+          checkout:
+          - branch: main
+            path: ./repo
+      - uses: kustomize-set-image
+        as: update-image
+        config:
+          path: ./repo/apps/guestbook/envs/prod-us-east
+          images:
+          - image: ${{ vars.imageRepo }}
+      - uses: git-commit
+        as: commit
+        config:
+          path: ./repo
+          messageFromSteps:
+          - update-image
+      - uses: git-push
+        config:
+          path: ./repo
+      - uses: argocd-update
+        config:
+          apps:
+          - name: guestbook-prod-us-east
+            sources:
+            - repoURL: ${{ vars.repoURL }}
+              desiredCommitFromStep: commit
